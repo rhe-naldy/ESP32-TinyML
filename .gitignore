@@ -1,0 +1,12 @@
+# Python / notebooks
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Datasets and local scratch files
+data/
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db

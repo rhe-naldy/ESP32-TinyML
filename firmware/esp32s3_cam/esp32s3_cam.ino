@@ -14,7 +14,7 @@
 #include <Chirale_TensorFlowLite.h>
 
 // #include "c_req_vabc_VGGNet.h"
-#include "c_req_aug_vabc_VGGNet.h"
+#include "vggnet_vabc_gznorm_aug_int8.h"
 
 #include "tensorflow/lite/micro/all_ops_resolver.h"
 #include "tensorflow/lite/micro/micro_allocator.h"
