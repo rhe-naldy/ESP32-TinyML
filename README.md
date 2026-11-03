@@ -34,7 +34,7 @@ candidates.
 ESP32-TinyML/
 ├── firmware/esp32s3_cam/   Arduino sketch + quantized model header
 ├── models/                 trained checkpoint and INT8 TFLite model
-├── notebooks/              training and quantization notebooks
+├── notebooks/              training, quantization, and header conversion
 └── docs/                   diagrams and prototype photos
 ```
 
@@ -46,6 +46,7 @@ ESP32-TinyML/
 | [`models/trained/vggnet_vabc_gznorm_aug_best.h5`](https://github.com/rhe-naldy/ESP32-TinyML/blob/main/models/trained/vggnet_vabc_gznorm_aug_best.h5) | Best Keras checkpoint saved during training |
 | [`notebooks/01_train_vggnet_vabc_gznorm_aug.ipynb`](https://github.com/rhe-naldy/ESP32-TinyML/blob/main/notebooks/01_train_vggnet_vabc_gznorm_aug.ipynb) | Training notebook: data loading, VABC conversion, z-score normalization, model definition and training |
 | [`notebooks/02_prune_quantize_vggnet_vabc_gznorm_aug_int8.ipynb`](https://github.com/rhe-naldy/ESP32-TinyML/blob/main/notebooks/02_prune_quantize_vggnet_vabc_gznorm_aug_int8.ipynb) | Quantization notebook: pruning strip, representative dataset, INT8 conversion and evaluation |
+| [`notebooks/03_convert_tflite_to_header.ipynb`](https://github.com/rhe-naldy/ESP32-TinyML/blob/main/notebooks/03_convert_tflite_to_header.ipynb) | Header conversion notebook: inspects tensors/ops and converts the `.tflite` bytes into a C array |
 | [`docs/system-architecture.png`](https://github.com/rhe-naldy/ESP32-TinyML/blob/main/docs/system-architecture.png) | System architecture diagram |
 | [`docs/circuit.png`](https://github.com/rhe-naldy/ESP32-TinyML/blob/main/docs/circuit.png) | Wiring / circuit diagram |
 | [`docs/prototype.jpg`](https://github.com/rhe-naldy/ESP32-TinyML/blob/main/docs/prototype.jpg) | Photo of the assembled prototype |
@@ -65,7 +66,8 @@ Files follow `<arch>_<index>_<norm>_<aug>[_<precision>]`:
 | `_int8` | suffix | Fully integer INT8 quantized model |
 
 Notebooks are numbered by pipeline stage: `01_train_…` builds and trains the model from
-scratch, while `02_prune_quantize_…` prunes and quantizes that trained model. The original
+scratch, `02_prune_quantize_…` prunes and quantizes it, and
+`03_convert_tflite_to_header.ipynb` exports the quantized model as a C header. The original
 experiment files used bracketed tags — `[MODEL]`, `[Quant]`, `[VABC]`, `[GZNorm]`, `[INT8]`,
 `[AUG]` — which map directly onto the tokens above.
 
@@ -96,7 +98,8 @@ augmented training split is used (`AUG`).
 **Compression.** After pruning, the model is converted to a fully integer TFLite model with
 `TFLITE_BUILTINS_INT8`; both input and output tensors are `int8`. A representative dataset
 of leaf images is used for calibration. The exported `.tflite` is then converted to the C
-array in `vggnet_vabc_gznorm_aug_int8.h`.
+array in `vggnet_vabc_gznorm_aug_int8.h`; the conversion routine is recorded in
+`03_convert_tflite_to_header.ipynb`.
 
 **Output classes (10):**
 
@@ -199,7 +202,7 @@ then pauses briefly and starts again.
 
 ## Reproducing the model
 
-The two notebooks are the experiment record and should be read in order:
+The three notebooks are the experiment record and should be read in order:
 
 1. **Training** — `notebooks/01_train_vggnet_vabc_gznorm_aug.ipynb`: loads the dataset,
    converts images to VABC, applies global z-score normalization, defines the VGG-style
@@ -208,6 +211,9 @@ The two notebooks are the experiment record and should be read in order:
    loads the pruned model, strips pruning wrappers, builds the INT8 TFLite model with a
    representative dataset, and evaluates the quantized model's accuracy, precision, and
    recall.
+3. **Header conversion** — `notebooks/03_convert_tflite_to_header.ipynb`: checks the
+   quantized model's tensor types and estimated arena size, lists its operators, and
+   converts the `.tflite` bytes into the C header included by the firmware.
 
 The notebooks were written for a GPU-enabled Colab/Kaggle-style environment; file paths
 inside them reflect that original workspace.
