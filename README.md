@@ -240,6 +240,69 @@ inside them reflect that original workspace.
 
 ---
 
+## Future improvements
+
+If I were to rebuild this project, these are the changes I would make first.
+
+### Sub-second inference
+
+The deployed model takes roughly 12 seconds per classification on the ESP32-S3; the goal is
+to bring that near one second without giving up accuracy. Input resolution is the first lever
+(256×256 is generous for a single-channel index image), followed by fewer filters, depthwise
+separable convolutions, and earlier downsampling. Each variant would be retrained,
+re-quantized, and benchmarked rather than assumed to be faster.
+
+### One training pipeline instead of eighteen notebooks
+
+The comparison covered 3 vegetation indices (NGRDI, VABC, TGI) × 2 augmentation settings ×
+3 architectures (VGGNet, ResNet, InceptionV3) — 18 models, each trained from its own copy of
+the notebook. At about an hour per model before pruning and quantization, most of the effort
+went into duplicated code and manual bookkeeping.
+
+A single script driven by a configuration list would do the same work:
+
+```python
+configs = [
+    {"index": index, "augmented": augmented, "model": model}
+    for index in ["ngrdi", "vabc", "tgi"]
+    for augmented in [False, True]
+    for model in ["vggnet", "resnet", "inceptionv3"]
+]
+```
+
+The harder part is not the loop but the surrounding plumbing. My PC could not run around the
+clock, so a crash halfway through meant restarting by hand. Checkpointing every epoch, a run
+registry that records completed configurations, output paths derived from the configuration,
+and a startup step that skips finished runs would make the whole sweep restartable — and
+would also guarantee that all 18 runs share the same splits and preprocessing, which matters
+when the results are compared.
+
+### Stronger optimization
+
+- **Transfer learning** — fine-tune ImageNet-pretrained backbones instead of training from
+  scratch, adapting the first convolution to the single-channel input.
+- **Structured pruning** — remove whole filters/channels so inference actually gets faster;
+  unstructured sparsity saves space but not time.
+- **Quantization-aware training** — recover the accuracy lost by post-training INT8.
+- **Knowledge distillation** — train the small deployable model on the outputs of the larger
+  models.
+- **Hardware-aware NAS** — search architectures under explicit flash, SRAM, and latency
+  budgets, in the spirit of MCUNet.
+- **Optimized kernels** — ESP-NN/ESP-DL kernels and operator fusion instead of the TFLite
+  Micro reference kernels, keeping hot tensors in internal SRAM while weights stay in flash.
+
+### Engineering and evaluation
+
+- Benchmark all 18 configurations in one table — accuracy, precision, recall, F1, latency,
+  arena size — instead of scattered notebook outputs.
+- Unit-test the VABC computation so the firmware and the Python preprocessing are proved to
+  agree, plus a golden-vector test that a fixed input still yields the same class.
+- Pin the environment and document the dataset version and splits.
+- Split the sketch into modules (camera, VI, model) and load the model from LittleFS instead
+  of compiling a 576 KB header into the sketch, so models can be swapped without reflashing.
+
+---
+
 ## Citation
 
 If you use this work, please cite the thesis:
